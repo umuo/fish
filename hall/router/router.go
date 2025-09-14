@@ -14,6 +14,10 @@ func init() {
 	http.HandleFunc("/enter_public_room", controllers.EnterPublicRoom)
 	http.HandleFunc("/register_game_server", controllers.RegisterGameServer)
 
-	http.HandleFunc("/qq/login", controllers.QQLogin)
-	http.HandleFunc("/qq/message", controllers.QQCallback)
+	// Admin login (use simple version as default)
+	http.HandleFunc("/admin/login", controllers.SimpleAdminLogin)
+	http.HandleFunc("/simple/admin/login", controllers.SimpleAdminLogin)
+	
+	// Static files
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("hall/static/"))))
 }

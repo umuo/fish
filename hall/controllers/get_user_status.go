@@ -1,14 +1,9 @@
 package controllers
 
 import (
-	"context"
 	"encoding/json"
-	"fish/common/api/thrift/gen-go/rpc"
-	"fish/common/tools"
-	"fish/hall/common"
 	"github.com/astaxie/beego/logs"
 	"net/http"
-	"strconv"
 )
 
 func GetUserStatus(w http.ResponseWriter, r *http.Request) {
@@ -30,23 +25,11 @@ func GetUserStatus(w http.ResponseWriter, r *http.Request) {
 		"errcode": 1,
 		"errmsg":  "failed",
 	}
-	if client, closeTransportHandler, err := tools.GetRpcClient(common.HallConf.AccountHost, strconv.Itoa(common.HallConf.AccountPort)); err == nil {
-		defer func() {
-			if err := closeTransportHandler(); err != nil {
-				logs.Error("close rpc err: %v", err)
-			}
-		}()
-		if res, err := client.GetUserInfoByToken(context.Background(), token); err == nil {
-			if res.Code == rpc.ErrorCode_Success {
-				ret = map[string]interface{}{
-					"errcode": 0,
-					"errmsg":  "ok",
-					"gems":    res.UserObj.Gems,
-				}
-			}
-		} else {
-			logs.Error("call rpc GetUserStatus err: %v", err)
-		}
+	// Mock user status - skip RPC call
+	ret = map[string]interface{}{
+		"errcode": 0,
+		"errmsg":  "ok",
+		"gems":    10000, // Mock gems value
 	}
 	defer func() {
 		data, err := json.Marshal(ret)

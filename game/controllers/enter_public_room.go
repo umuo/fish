@@ -1,11 +1,8 @@
 package controllers
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/json"
-	"fish/common/api/thrift/gen-go/rpc"
-	"fish/common/tools"
 	"fish/game/common"
 	"fish/game/service"
 	"fmt"
@@ -63,16 +60,32 @@ func EnterPublicRoom(w http.ResponseWriter, r *http.Request) {
 			logs.Error("CreateRoom err: %v", err)
 		}
 	}()
-	if client, closeTransportHandler, err := tools.GetRpcClient(common.GameConf.AccountHost, strconv.Itoa(common.GameConf.AccountPort)); err == nil {
-		defer func() {
-			if err := closeTransportHandler(); err != nil {
-				logs.Error("close rpc err: %v", err)
+	// Mock user data - skip RPC call to account server
+	if token == fmt.Sprintf("%x", md5.Sum([]byte("t"+t))) {
+		// Create mock user data based on account parameter
+		var userId service.UserId
+		var userScore int
+		var userName string
+		var userVip int
+		
+		// Create unique userId from account parameter
+		// Parse userId from account (e.g., guest_1757782563979 -> 1757782563979)
+		if len(account) > 6 && account[:6] == "guest_" {
+			if userIdInt, err := strconv.ParseInt(account[6:], 10, 64); err == nil {
+				userId = service.UserId(userIdInt)
+			} else {
+				// If parsing fails, use current timestamp as fallback
+				userId = service.UserId(time.Now().UnixNano() / 1000000) // milliseconds
 			}
-		}()
-		if res, err := client.GetUserInfoByToken(context.Background(), sign); err == nil {
-			if res.Code == rpc.ErrorCode_Success {
-				userId := service.UserId(res.UserObj.UserId)
-				if token == fmt.Sprintf("%x", md5.Sum([]byte("t"+t))) {
+		} else {
+			// For non-guest accounts, use current timestamp
+			userId = service.UserId(time.Now().UnixNano() / 1000000) // milliseconds
+		}
+		
+		// Set mock user data
+		userScore = 10000    // Mock score
+		userName = account   // Use account as username
+		userVip = 0         // Mock VIP level
 					// todo lock 🔒
 					var roomId service.RoomId
 					service.RoomMgr.RoomLock.Lock()
@@ -123,13 +136,13 @@ func EnterPublicRoom(w http.ResponseWriter, r *http.Request) {
 						roomInfo.HttpReqChan <- &service.HttpReqData{
 							UserInfo: service.UserInfo{
 								UserId:     userId,
-								Score:      int(res.UserObj.Gems),
-								Name:       res.UserObj.NickName,
+								Score:      userScore,
+								Name:       userName,
 								Ready:      false,
 								SeatIndex:  0,
-								Vip:        int(res.UserObj.Vip),
-								CannonKind: cannonKindVip[int(res.UserObj.Vip)],
-								Power:      float64(res.UserObj.Power) / 1000,
+								Vip:        userVip,
+								CannonKind: cannonKindVip[userVip],
+								Power:      1.0, // Mock power value
 								LockFishId: 0,
 							}, ErrChan: resChan,
 						}
@@ -165,12 +178,7 @@ func EnterPublicRoom(w http.ResponseWriter, r *http.Request) {
 							}
 						}
 					}
-				} else {
-					logs.Error("EnterPublicRoom check token err")
-				}
-			}
-		} else {
-			logs.Error("get UserInfo by token err: %v", err)
-		}
+	} else {
+		logs.Error("EnterPublicRoom check token err")
 	}
 }
